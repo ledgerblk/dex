@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract SimpleDEX {
+    address public owner;
+    mapping(address => uint256) public balances;
+    mapping(address => mapping(address => uint256)) public allowed;
+
+    event Deposit(address indexed account, uint256 amount);
+    event Withdrawal(address indexed account, uint256 amount);
+    event Trade(address indexed fromToken, uint256 fromAmount, address indexed toToken, uint256 toAmount);
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function deposit(address token, uint256 amount) external {
+        require(token != address(0), "Invalid token address");
+        require(amount > 0, "Invalid amount");
+
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        balances[token] += amount;
+
+        emit Deposit(msg.sender, amount);
+    }
+
+    function withdraw(address token, uint256 amount) external {
+        require(token != address(0), "Invalid token address");
+        require(amount > 0, "Invalid amount");
+        require(balances[token] >= amount, "Insufficient balance");
+
+        balances[token] -= amount;
+        IERC20(token).transfer(msg.sender, amount);
+
+        emit Withdrawal(msg.sender, amount);
+    }
+
+    function trade(
+        address fromToken,
+        uint256 fromAmount,
+        address toToken,
+        uint256 toAmount
+    ) external {
+        require(fromToken != address(0) && toToken != address(0), "Invalid token address");
+        require(fromAmount > 0 && toAmount > 0, "Invalid amount");
+
+        require(balances[fromToken] >= fromAmount, "Insufficient balance");
+
+        balances[fromToken] -= fromAmount;
+        balances[toToken] += toAmount;
+
+        emit Trade(fromToken, fromAmount, toToken, toAmount);
+    }
+
+    function approve(address spender, address token, uint256 amount) external {
+        require(spender != address(0), "Invalid spender address");
+        require(token != address(0), "Invalid token address");
+
+        allowed[token][spender] = amount;
+    }
+
+    function allowance(address owner, address spender, address token) external view returns (uint256) {
+        require(owner != address(0), "Invalid owner address");
+        require(spender != address(0), "Invalid spender address");
+        require(token != address(0), "Invalid token address");
+
+        return allowed[token][spender];
+    }
+}
